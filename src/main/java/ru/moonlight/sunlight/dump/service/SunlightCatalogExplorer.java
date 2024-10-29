@@ -31,7 +31,7 @@ public final class SunlightCatalogExplorer implements DumpService {
     private final Map<SunlightSupremeItem, List<SunlightCatalogItem>> collectedItems;
 
     public SunlightCatalogExplorer() {
-        this.semaphore = new Semaphore(16);
+        this.semaphore = new Semaphore(24);
         this.executorService = Executors.newVirtualThreadPerTaskExecutor();
 
         this.jsonWriter = JsonMapper.builder()
@@ -45,8 +45,10 @@ public final class SunlightCatalogExplorer implements DumpService {
 
     @Override
     public void collectData() throws IOException {
+        long start = System.currentTimeMillis();
+
         for (SunlightSupremeItem supremeItem : SunlightSupremeItem.values()) {
-            System.out.printf("Collecting catalog items for item type '%s'...%n", supremeItem.name());
+            System.out.printf("Collecting catalog items for item type '%s'...%n", supremeItem.getKey());
 
             String catalogUrl = supremeItem.getUrl();
             String baseCatalogUrl = catalogUrl.endsWith(".html") ? catalogUrl.substring(0, catalogUrl.length() - 5) : catalogUrl;
@@ -86,6 +88,10 @@ public final class SunlightCatalogExplorer implements DumpService {
             System.out.println();
             this.collectedItems.put(supremeItem, collectedItems);
         }
+
+        long timeTook = System.currentTimeMillis() - start;
+        int totalItems = collectedItems.values().stream().mapToInt(Collection::size).sum();
+        System.out.printf("Found %d item(s) in Sunlight catalogs, time took: %.2f sec%n", totalItems, timeTook / 1000D);
     }
 
     @Override
