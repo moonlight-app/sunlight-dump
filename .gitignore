@@ -1,6 +1,7 @@
 .idea/
 .gradle/
 build/
+dump/
 out/
 *.iml
 *.jar
