@@ -2,11 +2,14 @@ package ru.moonlight.sunlight.dump.service;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import ru.moonlight.sunlight.dump.exception.SunlightParseException;
 import ru.moonlight.sunlight.dump.model.SunlightCatalogItem;
-import ru.moonlight.sunlight.dump.model.SunlightSupremeItem;
+import ru.moonlight.sunlight.dump.model.attribute.Audience;
+import ru.moonlight.sunlight.dump.model.attribute.ProductType;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -14,7 +17,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,15 +29,18 @@ import java.util.stream.IntStream;
 
 public final class SunlightCatalogExplorer implements DumpService {
 
+    // this value may be increased up to 24, but for bigger value Sunlight servers
+    // returns 503 too often, but the sunlight-dump uses retrying schema :)
+    private static final int MAX_SIMULTANEOUS_CONNECTIONS = 20;
+    private static final int SUNLIGHT_ITEMS_PER_PAGE = 60;
+
     private final Semaphore semaphore;
     private final ExecutorService executorService;
     private final ObjectWriter jsonWriter;
     private final Path outputDir;
 
-    private final Map<SunlightSupremeItem, List<SunlightCatalogItem>> collectedItems;
-
     public SunlightCatalogExplorer() {
-        this.semaphore = new Semaphore(24);
+        this.semaphore = new Semaphore(MAX_SIMULTANEOUS_CONNECTIONS);
         this.executorService = Executors.newVirtualThreadPerTaskExecutor();
 
         this.jsonWriter = JsonMapper.builder()
@@ -39,44 +48,62 @@ public final class SunlightCatalogExplorer implements DumpService {
                 .writerWithDefaultPrettyPrinter();
 
         this.outputDir = Paths.get("dump").resolve("catalog");
-
-        this.collectedItems = new HashMap<>();
     }
 
     @Override
     public void collectData() throws IOException {
         long start = System.currentTimeMillis();
+        int totalItems = 0;
 
-        for (SunlightSupremeItem supremeItem : SunlightSupremeItem.values()) {
-            System.out.printf("Collecting catalog items for item type '%s'...%n", supremeItem.getKey());
+        for (ProductType productType : ProductType.values()) {
+            System.out.printf("Collecting catalog items for item type '%s'...%n", productType.getKey());
+            Map<UUID, SunlightCatalogItem> collectedItems = new HashMap<>();
 
-            String catalogUrl = supremeItem.getUrl();
-            String baseCatalogUrl = catalogUrl.endsWith(".html") ? catalogUrl.substring(0, catalogUrl.length() - 5) : catalogUrl;
-            System.out.printf("  Collecting data on %d page(s)...%n", supremeItem.getTotalPages());
+            for (Audience audience : Audience.values()) {
+                System.out.printf("  Collecting data for audience '%s/%s'...%n", productType.getKey(), audience.getKey());
+                String pageableUrl = generatePageableUrl(productType, audience);
 
-            List<CompletableFuture<LookupResult>> futures = IntStream.rangeClosed(1, supremeItem.getTotalPages())
-                    .mapToObj(page -> CompletableFuture.supplyAsync(() -> lookupCatalogItems(baseCatalogUrl, page), executorService))
-                    .toList();
-
-            List<SunlightCatalogItem> collectedItems = new ArrayList<>();
-            for (CompletableFuture<LookupResult> future : futures) {
-                LookupResult result = future.join();
+                System.out.println("    Looking at the first page...");
+                LookupResult result = lookupCatalogItems(audience, pageableUrl, 1, true);
                 if (result == null)
-                    continue;
+                    return;
 
-                if (result.items().isEmpty()) {
-                    System.err.printf("    Page %d -> no items found!%n", result.page());
+                List<SunlightCatalogItem> items = result.items();
+                if (items.isEmpty()) {
+                    System.err.println("    There are no items on the first page!");
+                    continue;
                 } else {
-                    System.out.printf("    Page %d -> %d item(s) found!%n", result.page(), result.items().size());
-                    collectedItems.addAll(result.items());
+                    pickUpCatalogItems(collectedItems, items);
+                }
+
+                int totalPages = result.totalPages();
+                System.out.printf("    Fetched metadata: %d item(s) on %d page(s)%n", result.totalItems(), totalPages);
+
+                if (totalPages > 1) {
+                    System.out.printf("    Collecting data from other pages (%d)...%n", totalPages - 1);
+                    List<CompletableFuture<LookupResult>> futures = IntStream.rangeClosed(2, totalPages)
+                            .mapToObj(page -> lookupCatalogItemsAsync(audience, pageableUrl, page))
+                            .toList();
+
+                    for (CompletableFuture<LookupResult> future : futures) {
+                        result = future.join();
+                        if (result == null)
+                            return;
+
+                        items = result.items();
+                        if (items.isEmpty()) {
+                            System.err.printf("      Page %d -> no items found!%n", result.page());
+                        } else {
+                            pickUpCatalogItems(collectedItems, items);
+                        }
+                    }
                 }
             }
 
-            System.out.printf("  Collected %d item(s) from %d page(s)%n", collectedItems.size(), supremeItem.getTotalPages());
-            System.out.println("  Exporting results...");
-            collectedItems.sort(Comparator.comparingInt(SunlightCatalogItem::index));
+            System.out.printf("  Collected %d item(s) with audiences!%n", collectedItems.size());
 
-            Path outputFile = outputDir.resolve("%s-items.json".formatted(supremeItem.getKey()));
+            System.out.println("  Exporting results...");
+            Path outputFile = outputDir.resolve("%s-items.json".formatted(productType.getKey()));
 
             if (!Files.isDirectory(outputFile.getParent()))
                 Files.createDirectories(outputFile.getParent());
@@ -86,11 +113,11 @@ public final class SunlightCatalogExplorer implements DumpService {
             }
 
             System.out.println();
-            this.collectedItems.put(supremeItem, collectedItems);
+            totalItems += collectedItems.size();
+            collectedItems.clear();
         }
 
         long timeTook = System.currentTimeMillis() - start;
-        int totalItems = collectedItems.values().stream().mapToInt(Collection::size).sum();
         System.out.printf("Found %d item(s) in Sunlight catalogs, time took: %.2f sec%n", totalItems, timeTook / 1000D);
     }
 
@@ -99,18 +126,42 @@ public final class SunlightCatalogExplorer implements DumpService {
         executorService.shutdownNow();
     }
 
-    public List<SunlightCatalogItem> getCollectedItems(SunlightSupremeItem supremeItem) {
-        return collectedItems.get(supremeItem);
+    private CompletableFuture<LookupResult> lookupCatalogItemsAsync(Audience audience, String pageableUrl, int page) {
+        return CompletableFuture.supplyAsync(() -> lookupCatalogItems(audience, pageableUrl, page, false), executorService);
     }
 
-    private LookupResult lookupCatalogItems(String baseCatalogUrl, int page) {
-        String pageUrl = baseCatalogUrl + "/page-" + page + "/";
+    private LookupResult lookupCatalogItems(Audience audience, String pageableUrl, int page, boolean computeMeta) {
+        String pageUrl = pageableUrl + page;
 
         try {
             semaphore.acquire();
-            Document document = Jsoup.connect(pageUrl).userAgent(USER_AGENT).get();
-            List<SunlightCatalogItem> items = SunlightCatalogItem.lookupItems(document);
-            return new LookupResult(page, pageUrl, items);
+
+            Document document;
+            while (true) {
+                try {
+                    document = Jsoup.connect(pageUrl).userAgent(USER_AGENT).get();
+                    break;
+                } catch (HttpStatusException ex) {
+                    if (ex.getStatusCode() == 503) {
+                        System.err.printf("Sunlight server returned 503! Retrying request to '%s' in 3 seconds...%n", ex.getUrl());
+                        Thread.sleep(3000L);
+                        continue;
+                    }
+
+                    throw ex;
+                }
+            }
+
+            List<SunlightCatalogItem> items = SunlightCatalogItem.lookupItems(audience, document);
+            int totalItems = 0, totalPages = 0;
+
+            if (computeMeta) {
+                totalItems = lookupNumberOfItems(document);
+                totalPages = totalItems / SUNLIGHT_ITEMS_PER_PAGE;
+                totalPages += totalItems % SUNLIGHT_ITEMS_PER_PAGE != 0 ? 1 : 0;
+            }
+
+            return new LookupResult(page, pageUrl, totalItems, totalPages, items);
         } catch (InterruptedException ignored) {
         } catch (IOException ex) {
             throw new SunlightParseException(ex);
@@ -121,9 +172,33 @@ public final class SunlightCatalogExplorer implements DumpService {
         return null;
     }
 
+    private static void pickUpCatalogItems(Map<UUID, SunlightCatalogItem> collectedItems, List<SunlightCatalogItem> items) {
+        for (SunlightCatalogItem item : items) {
+            UUID id = item.id();
+            collectedItems.merge(id, item, (oldItem, newItem) -> {
+                oldItem.audiences().addAll(newItem.audiences());
+                return oldItem;
+            });
+        }
+    }
+
+    private static int lookupNumberOfItems(Element element) {
+        return Integer.parseInt(element.selectFirst("meta[itemprop=\"numberOfItems\"]").attr("content"));
+    }
+
+    private static String generatePageableUrl(ProductType productType, Audience audience) {
+        return "%s/catalog/?product_type=%d&gender_position=%d&page=".formatted(
+                BASE_URL,
+                productType.getSunlightId(),
+                audience.getSunlightId()
+        );
+    }
+
     private record LookupResult(
             int page,
             String pageUrl,
+            int totalItems,
+            int totalPages,
             List<SunlightCatalogItem> items
     ) { }
 
