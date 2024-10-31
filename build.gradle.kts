@@ -16,6 +16,7 @@ repositories {
 }
 
 dependencies {
+    implementation(libs.converterJackson)
     implementation(libs.jackson)
     implementation(libs.jsoup)
 

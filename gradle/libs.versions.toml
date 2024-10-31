@@ -1,9 +1,11 @@
 [versions]
+converterJackson = "2.11.0"
 jackson = "2.18.1"
 jsoup = "1.18.1"
 lombok = "1.18.34"
 
 [libraries]
+converterJackson = { module = "com.squareup.retrofit2:converter-jackson", version.ref = "converterJackson" }
 jackson = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }

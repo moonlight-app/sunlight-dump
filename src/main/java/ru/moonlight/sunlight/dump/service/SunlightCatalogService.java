@@ -27,11 +27,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.stream.IntStream;
 
-public final class SunlightCatalogExplorer implements DumpService {
+public final class SunlightCatalogService implements DumpService {
 
-    // this value may be increased up to 24, but for bigger value Sunlight servers
-    // returns 503 too often, but the sunlight-dump uses retrying schema :)
-    private static final int MAX_SIMULTANEOUS_CONNECTIONS = 20;
     private static final int SUNLIGHT_ITEMS_PER_PAGE = 60;
 
     private final Semaphore semaphore;
@@ -39,7 +36,7 @@ public final class SunlightCatalogExplorer implements DumpService {
     private final ObjectWriter jsonWriter;
     private final Path outputDir;
 
-    public SunlightCatalogExplorer() {
+    public SunlightCatalogService() {
         this.semaphore = new Semaphore(MAX_SIMULTANEOUS_CONNECTIONS);
         this.executorService = Executors.newVirtualThreadPerTaskExecutor();
 
