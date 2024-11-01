@@ -27,6 +27,15 @@ public final class DumpCache<M extends SunlightDumpModel> {
         this.lock = new ReentrantLock();
     }
 
+    public boolean isEmpty() {
+        try {
+            lock.lock();
+            return modelStore.isEmpty();
+        } finally {
+            lock.unlock();
+        }
+    }
+
     public int size() {
         try {
             lock.lock();

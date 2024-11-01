@@ -9,6 +9,7 @@ import ru.moonlight.sunlight.dump.api.SunlightApi;
 import ru.moonlight.sunlight.dump.cache.DumpCache;
 import ru.moonlight.sunlight.dump.cli.SunlightDumpConsole;
 import ru.moonlight.sunlight.dump.model.SunlightCatalogItem;
+import ru.moonlight.sunlight.dump.model.SunlightFullItem;
 import ru.moonlight.sunlight.dump.model.SunlightItemDetails;
 import ru.moonlight.sunlight.dump.service.SunlightCatalogService;
 import ru.moonlight.sunlight.dump.service.SunlightItemDetailsService;
@@ -23,6 +24,7 @@ public final class SunlightDump {
     @Getter private final Path dumpDir;
     @Getter private final DumpCache<SunlightCatalogItem> catalogItemsCache;
     @Getter private final DumpCache<SunlightItemDetails> itemDetailsCache;
+    @Getter private final DumpCache<SunlightFullItem> fullItemsCache;
 
     private JsonMapper jsonMapper;
     private Retrofit retrofit;
@@ -35,6 +37,7 @@ public final class SunlightDump {
         this.dumpDir = Paths.get("dump");
         this.catalogItemsCache = new DumpCache<>();
         this.itemDetailsCache = new DumpCache<>();
+        this.fullItemsCache = new DumpCache<>();
     }
 
     public void runApplication() {

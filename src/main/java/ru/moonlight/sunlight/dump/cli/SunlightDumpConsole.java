@@ -2,10 +2,7 @@ package ru.moonlight.sunlight.dump.cli;
 
 import lombok.Getter;
 import ru.moonlight.sunlight.dump.SunlightDump;
-import ru.moonlight.sunlight.dump.cli.command.DumpCatalogCommand;
-import ru.moonlight.sunlight.dump.cli.command.DumpDetailsCommand;
-import ru.moonlight.sunlight.dump.cli.command.LoadCatalogCommand;
-import ru.moonlight.sunlight.dump.cli.command.LoadDetailsCommand;
+import ru.moonlight.sunlight.dump.cli.command.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,9 +22,10 @@ public final class SunlightDumpConsole implements AutoCloseable {
               h   help           :   print this message
               dc  dump-catalog   :   make dump of the catalog items
               dd  dump-details   :   make dump of items details
+              dm  dump-merged    :   merge data from both dumps
               lc  load-catalog   :   load dump of the catalog items
               ld  load-details   :   load dump of items details
-              md  merge-dumps    :   merge data from both dumps
+              lm  load-merged    :   load dump of merged items
               gs  generate-sql   :   generate inserting SQL script
               e   exit           :   close the application
             """;
@@ -56,9 +54,10 @@ public final class SunlightDumpConsole implements AutoCloseable {
                 case "h", "help" -> System.out.print(HELP_MESSAGE);
                 case "dc", "dump-catalog" -> runCommand(CommandEnum.DUMP_CATALOG);
                 case "dd", "dump-details" -> runCommand(CommandEnum.DUMP_DETAILS);
+                case "dm", "dump-merged" -> runCommand(CommandEnum.DUMP_MERGED);
                 case "lc", "load-catalog" -> runCommand(CommandEnum.LOAD_CATALOG);
                 case "ld", "load-details" -> runCommand(CommandEnum.LOAD_DETAILS);
-                case "md", "merge-dumps" -> runCommand(CommandEnum.MERGE_DUMPS);
+                case "lm", "load-merged" -> runCommand(CommandEnum.LOAD_MERGED);
                 case "gs", "generate-sql" -> runCommand(CommandEnum.GENERATE_SQL);
                 case "e", "exit" -> {
                     break inputLoop;
@@ -91,8 +90,11 @@ public final class SunlightDumpConsole implements AutoCloseable {
     private void registerDefaultCommands() {
         registeredCommands.put(CommandEnum.DUMP_CATALOG, new DumpCatalogCommand(application));
         registeredCommands.put(CommandEnum.DUMP_DETAILS, new DumpDetailsCommand(application));
+        registeredCommands.put(CommandEnum.DUMP_MERGED, new DumpMergedCommand(application));
         registeredCommands.put(CommandEnum.LOAD_CATALOG, new LoadCatalogCommand(application));
         registeredCommands.put(CommandEnum.LOAD_DETAILS, new LoadDetailsCommand(application));
+        registeredCommands.put(CommandEnum.LOAD_MERGED, new LoadMergedCommand(application));
+        registeredCommands.put(CommandEnum.GENERATE_SQL, new GenerateSQLCommand(application));
     }
 
 }

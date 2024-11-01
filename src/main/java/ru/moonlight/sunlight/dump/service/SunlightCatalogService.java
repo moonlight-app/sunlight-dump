@@ -13,6 +13,7 @@ import ru.moonlight.sunlight.dump.util.SunlightConnector;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.stream.IntStream;
 
@@ -49,7 +50,7 @@ public final class SunlightCatalogService implements DumpService {
                 System.out.println("    Looking at the first page...");
                 LookupResult result = lookupCatalogItems(productType, audience, 1, true);
                 if (result == null)
-                    return;
+                    continue;
 
                 List<SunlightCatalogItem> items = result.items();
                 if (items.isEmpty()) {
@@ -70,8 +71,9 @@ public final class SunlightCatalogService implements DumpService {
                             .toList();
 
                     for (CompletableFuture<LookupResult> future : futures) {
+                        result = future.join();
                         if (result == null)
-                            return;
+                            continue;
 
                         items = result.items();
                         if (items.isEmpty()) {
@@ -140,7 +142,7 @@ public final class SunlightCatalogService implements DumpService {
     }
 
     private static int lookupNumberOfItems(Element element) {
-        return Integer.parseInt(element.selectFirst("meta[itemprop=\"numberOfItems\"]").attr("content"));
+        return Integer.parseInt(Objects.requireNonNull(element.selectFirst("meta[itemprop=\"numberOfItems\"]")).attr("content"));
     }
 
     private static String generatePageableUrl(ProductType productType, Audience audience) {

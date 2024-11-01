@@ -12,6 +12,7 @@ import ru.moonlight.sunlight.dump.model.SunlightItemDetails;
 import ru.moonlight.sunlight.dump.util.SunlightConnector;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.*;
@@ -52,19 +53,30 @@ public final class SunlightItemDetailsService implements DumpService {
                 .toList();
 
         for (CompletableFuture<SunlightItemDetails> future : futures) {
-            SunlightItemDetails result;
+            SunlightItemDetails result = null;
 
             try {
                 result = future.get(1L, TimeUnit.MINUTES);
             } catch (TimeoutException ex) {
-                System.err.println("An item lookup has been skipped due to timeout!");
+                System.err.println("An item lookup has been skipped due to wait timeout!");
                 continue;
             } catch (InterruptedException ignored) {
-                return;
+            } catch (ExecutionException ex) {
+                Throwable cause = ex.getCause();
+                if (cause instanceof SunlightParseException cast)
+                    cause = cast.getCause();
+
+                if (cause instanceof SocketTimeoutException) {
+                    System.err.println("An item lookup has been skipped due to read timeout!");
+                    continue;
+                }
+
+                System.err.println("An item lookup has been failed:");
+                ex.printStackTrace(System.err);
             }
 
             if (result == null)
-                return;
+                continue;
 
             cache.save(result);
             System.out.printf(
@@ -109,7 +121,8 @@ public final class SunlightItemDetailsService implements DumpService {
 
     private float[] lookupItemSizes(long article) {
         Call<OrderData> call = application.getSunlightApi().fetchOrderData(article, CITY_ID_PERM);
-        return SunlightConnector.executeCall(call).getSizes();
+        OrderData orderData = SunlightConnector.executeCall(call);
+        return orderData != null ? orderData.getSizes() : null;
     }
 
 }

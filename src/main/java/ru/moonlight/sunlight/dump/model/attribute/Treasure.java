@@ -12,18 +12,21 @@ import java.util.Optional;
 @AllArgsConstructor
 public enum Treasure implements KeyedEnum {
 
-    DIAMOND     ("diamond",     13,     "бриллиант"),
-    SAPPHIRE    ("sapphire",    15,     "сапфир"),
-    PEARL       ("pearl",       17,     "жемчуг"),
-    AMETHYST    ("amethyst",    22,     "аметист"),
-    FIANIT      ("fianit",      322,    "фианит"),
-    EMERALD     ("emerald",     31,     "изумруд"),
-    RUBY        ("ruby",        304,    "рубин"),
+    NOTHING     (null,          0,      1,  null),
+    DIAMOND     ("diamond",     13,     2,  "бриллиант"),
+    SAPPHIRE    ("sapphire",    15,     3,  "сапфир"),
+    PEARL       ("pearl",       17,     4,  "жемчуг"),
+    AMETHYST    ("amethyst",    22,     5,  "аметист"),
+    FIANIT      ("fianit",      322,    6,  "фианит"),
+    EMERALD     ("emerald",     31,     7,  "изумруд"),
+    RUBY        ("ruby",        304,    8,  "рубин"),
+    UNKNOWN     ("unknown",     0,      0,  null),
     ;
 
     @JsonValue
     private final String key;
     private final int sunlightId; // query param = 'stone'
+    private final int moonlightId;
     private final String sunlightKey;
 
     public static Optional<Treasure[]> findBySunlightKeys(String sunlightKeys) {
@@ -50,8 +53,8 @@ public enum Treasure implements KeyedEnum {
             if (sunlightKey.equals(treasure.getSunlightKey()))
                 return Optional.of(treasure);
 
-//        System.err.printf("Unknown treasure key: '%s'%n", sunlightKey);
-        return Optional.empty();
+        System.err.printf("Unknown treasure key: '%s'%n", sunlightKey);
+        return Optional.of(UNKNOWN);
     }
 
 }
