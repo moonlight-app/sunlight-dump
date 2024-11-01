@@ -45,10 +45,10 @@ public final class GenerateSQLCommand implements CommandExecutor {
                 continue;
 
             Audience[] audiences = preProcessAudiences(item.audiences());
-            content.add("    (%d, %d, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)%s".formatted(
+            content.add("    (%d, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)%s".formatted(
                     item.index(),                                                           // id
                     item.article(),                                                         // article
-                    item.type().getMoonlightId(),                                           // type
+                    escapeString(item.type().getKey()),                                     // type
                     escapeString(item.name()),                                              // name
                     item.price(),                                                           // price
                     escapeString(joinArray(item.sizes())),                                  // sizes
