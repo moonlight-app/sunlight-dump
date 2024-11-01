@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @Getter
@@ -26,6 +28,21 @@ public enum Material implements KeyedEnum {
     private final String key;
     private final int sunlightId; // query param = 'material'
     private final String sunlightKey;
+
+    public static Optional<Material[]> findBySunlightKeys(String sunlightKeys) {
+        if (sunlightKeys == null || sunlightKeys.isEmpty())
+            return Optional.empty();
+
+        String[] keys = sunlightKeys.trim().split(",\\s?");
+        if (keys.length == 0)
+            return Optional.empty();
+
+        List<Material> materials = new ArrayList<>();
+        for (String key : keys)
+            findBySunlightKey(key).ifPresent(materials::add);
+
+        return !materials.isEmpty() ? Optional.of(materials.toArray(Material[]::new)) : Optional.empty();
+    }
 
     public static Optional<Material> findBySunlightKey(String sunlightKey) {
         if (sunlightKey == null || sunlightKey.isEmpty())

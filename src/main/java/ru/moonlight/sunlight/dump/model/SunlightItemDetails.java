@@ -7,33 +7,27 @@ import ru.moonlight.sunlight.dump.model.attribute.Material;
 import ru.moonlight.sunlight.dump.model.attribute.Treasure;
 
 import java.util.Map;
-import java.util.UUID;
+import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public record SunlightItemDetails(
-        @JsonProperty("id") UUID id,
         @JsonProperty("article") long article,
         @JsonProperty("model") String model,
-        @JsonProperty("material") Material material,
+        @JsonProperty("sizes") float[] sizes,
+        @JsonProperty("material") Material[] materials,
         @JsonProperty("treasures") Treasure[] treasures
-) {
+) implements SunlightDumpModel {
 
-    public static SunlightItemDetails fromElement(Element element) {
-        Element idElement = element.selectFirst("div.supreme-product-card-same-button[product-id][article]");
-        if (idElement == null)
-            throw new SunlightParseException("ID element not found!");
-
-        UUID id = UUID.fromString(idElement.attr("product-id"));
-        long article = Long.parseLong(idElement.attr("article"));
-
+    public static SunlightItemDetails fromElement(Element element, long article, Supplier<float[]> sizesProvider) {
         Map<String, String> attributes = lookupItemAttributes(element);
         if (!String.valueOf(article).equals(attributes.get("артикул")))
             throw new SunlightParseException("Item article mismatched!");
 
         String model = attributes.get("модель");
-        Material material = Material.findBySunlightKey(attributes.get("материал изделия")).orElse(null);
+        Material[] materials = Material.findBySunlightKeys(attributes.get("материал изделия")).orElse(null);
         Treasure[] treasures = Treasure.findBySunlightKeys(attributes.get("вставка")).orElse(null);
-        return new SunlightItemDetails(id, article, model, material, treasures);
+        return new SunlightItemDetails(article, model, sizesProvider.get(), materials, treasures);
     }
 
     private static Map<String, String> lookupItemAttributes(Element element) {
@@ -41,6 +35,20 @@ public record SunlightItemDetails(
                 descItem -> descItem.child(0).wholeText().toLowerCase(),
                 descItem -> descItem.child(1).wholeText()
         ));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        SunlightItemDetails that = (SunlightItemDetails) o;
+        return article == that.article;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(article);
     }
 
 }
