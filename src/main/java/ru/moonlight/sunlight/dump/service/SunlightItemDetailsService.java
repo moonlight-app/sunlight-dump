@@ -35,7 +35,8 @@ public final class SunlightItemDetailsService implements DumpService {
 
     @Override
     public void runService() throws Exception {
-        List<SunlightCatalogItem> catalogItems = application.getCatalogItemsCache().models();
+        DumpCache<SunlightCatalogItem> itemsCache = application.getCatalogItemsCache();
+        List<SunlightCatalogItem> catalogItems = itemsCache.models();
         if (catalogItems.isEmpty()) {
             System.err.println("Catalog items cache is empty!");
             return;
@@ -81,16 +82,17 @@ public final class SunlightItemDetailsService implements DumpService {
             cache.save(result);
             System.out.printf(
                     "  [%d / %d]: Fetched details for item #%d (%s)%n",
-                    ++fetchedCount, totalCount, result.article(), result.model()
+                    ++fetchedCount, totalCount, result.article(), result.type().getKey()
             );
         }
 
+        System.out.println();
         System.out.println("Exporting results...");
         Path outputFile = application.getDumpDir().resolve(DUMP_NAME_ITEM_DETAILS);
         cache.exportDump(outputFile, application.getJsonMapper());
 
         long timeTook = System.currentTimeMillis() - start;
-        System.out.printf("Detailed %d item(s) from Sunlight catalogs, time took: %.2f sec%n", totalCount, timeTook / 1000D);
+        System.out.printf("Detailed %d item(s) from Sunlight catalogs, time took: %.2f sec%n", fetchedCount, timeTook / 1000D);
     }
 
     @Override

@@ -14,7 +14,10 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.stream.IntStream;
 
 import static ru.moonlight.sunlight.dump.Constants.*;
@@ -40,55 +43,47 @@ public final class SunlightCatalogService implements DumpService {
         cache.clear();
         long start = System.currentTimeMillis();
 
-        for (ProductType productType : ProductType.values()) {
-            System.out.printf("Collecting catalog items for item type '%s'...%n", productType.getKey());
-            int productTypeItems = 0;
+        for (Audience audience : Audience.values()) {
+            System.out.printf("Collecting catalog items for audience '%s'...%n", audience.getKey());
 
-            for (Audience audience : Audience.values()) {
-                System.out.printf("  Collecting data for audience '%s/%s'...%n", productType.getKey(), audience.getKey());
+            System.out.println("  Looking at the first page...");
+            LookupResult result = lookupCatalogItems(audience, 1, true);
+            if (result == null)
+                continue;
 
-                System.out.println("    Looking at the first page...");
-                LookupResult result = lookupCatalogItems(productType, audience, 1, true);
-                if (result == null)
-                    continue;
+            List<SunlightCatalogItem> items = result.items();
+            if (items.isEmpty()) {
+                System.out.println("  There are no items on the first page!");
+                continue;
+            } else {
+                cache.saveAll(items, SunlightCatalogService::mergeCatalogItems);
+            }
 
-                List<SunlightCatalogItem> items = result.items();
-                if (items.isEmpty()) {
-                    System.out.println("    There are no items on the first page!");
-                    continue;
-                } else {
-                    cache.saveAll(items, SunlightCatalogService::mergeCatalogItems);
-                    productTypeItems += items.size();
-                }
+            int totalPages = result.totalPages();
+            System.out.printf("  Fetched metadata: %d item(s) on %d page(s)%n", result.totalItems(), totalPages);
 
-                int totalPages = result.totalPages();
-                System.out.printf("    Fetched metadata: %d item(s) on %d page(s)%n", result.totalItems(), totalPages);
+            if (totalPages > 1) {
+                System.out.printf("  Collecting data from other pages (%d)...%n", totalPages - 1);
+                List<CompletableFuture<LookupResult>> futures = IntStream.rangeClosed(2, totalPages)
+                        .mapToObj(page -> lookupCatalogItemsAsync(audience, page))
+                        .toList();
 
-                if (totalPages > 1) {
-                    System.out.printf("    Collecting data from other pages (%d)...%n", totalPages - 1);
-                    List<CompletableFuture<LookupResult>> futures = IntStream.rangeClosed(2, totalPages)
-                            .mapToObj(page -> lookupCatalogItemsAsync(productType, audience, page))
-                            .toList();
+                for (CompletableFuture<LookupResult> future : futures) {
+                    result = future.join();
+                    if (result == null)
+                        continue;
 
-                    for (CompletableFuture<LookupResult> future : futures) {
-                        result = future.join();
-                        if (result == null)
-                            continue;
-
-                        items = result.items();
-                        if (items.isEmpty()) {
-                            System.err.printf("      Page %d -> no items found!%n", result.page());
-                        } else {
-                            cache.saveAll(items, SunlightCatalogService::mergeCatalogItems);
-                            productTypeItems += items.size();
-                        }
+                    items = result.items();
+                    if (items.isEmpty()) {
+                        System.err.printf("    Page %d -> no items found!%n", result.page());
+                    } else {
+                        cache.saveAll(items, SunlightCatalogService::mergeCatalogItems);
                     }
                 }
             }
-
-            System.out.printf("  Collected %d item(s) with audiences!%n", productTypeItems);
         }
 
+        System.out.println();
         System.out.println("Exporting results...");
         Path outputFile = application.getDumpDir().resolve(DUMP_NAME_CATALOG_ITEMS);
         cache.exportDump(outputFile, application.getJsonMapper());
@@ -102,12 +97,12 @@ public final class SunlightCatalogService implements DumpService {
         executorService.shutdownNow();
     }
 
-    private CompletableFuture<LookupResult> lookupCatalogItemsAsync(ProductType productType, Audience audience, int page) {
-        return CompletableFuture.supplyAsync(() -> lookupCatalogItems(productType, audience, page, false), executorService);
+    private CompletableFuture<LookupResult> lookupCatalogItemsAsync(Audience audience, int page) {
+        return CompletableFuture.supplyAsync(() -> lookupCatalogItems(audience, page, false), executorService);
     }
 
-    private LookupResult lookupCatalogItems(ProductType productType, Audience audience, int page, boolean computeMeta) {
-        String pageUrl = generatePageableUrl(productType, audience) + page;
+    private LookupResult lookupCatalogItems(Audience audience, int page, boolean computeMeta) {
+        String pageUrl = generatePageUrl(audience, page);
 
         try {
             Document document;
@@ -118,7 +113,7 @@ public final class SunlightCatalogService implements DumpService {
                 semaphore.release();
             }
 
-            List<SunlightCatalogItem> items = SunlightCatalogItem.lookupItems(productType, audience, document);
+            List<SunlightCatalogItem> items = SunlightCatalogItem.lookupItems(audience, document);
             int totalItems = 0, totalPages = 0;
 
             if (computeMeta) {
@@ -145,12 +140,21 @@ public final class SunlightCatalogService implements DumpService {
         return Integer.parseInt(Objects.requireNonNull(element.selectFirst("meta[itemprop=\"numberOfItems\"]")).attr("content"));
     }
 
-    private static String generatePageableUrl(ProductType productType, Audience audience) {
-        return "%s/catalog/?product_type=%d&gender_position=%d&page=".formatted(
-                BASE_HTML_URL,
-                productType.getSunlightId(),
-                audience.getSunlightId()
-        );
+    private static String generatePageUrl(Audience audience, int page) {
+        if (audience != Audience.ALL) {
+            return "%s/catalog/?product_type=%s&gender_position=%d&page=%d".formatted(
+                    BASE_HTML_URL,
+                    ProductType.ALL_SUPPORTED,
+                    audience.getSunlightId(),
+                    page
+            );
+        } else {
+            return "%s/catalog/?product_type=%s&page=%d".formatted(
+                    BASE_HTML_URL,
+                    ProductType.ALL_SUPPORTED,
+                    page
+            );
+        }
     }
 
     private record LookupResult(

@@ -54,15 +54,6 @@ public final class DumpCache<M extends SunlightDumpModel> {
         }
     }
 
-    public Set<Long> articles() {
-        try {
-            lock.lock();
-            return Set.copyOf(modelStore.keySet());
-        } finally {
-            lock.unlock();
-        }
-    }
-
     public List<M> models() {
         try {
             lock.lock();
@@ -85,15 +76,6 @@ public final class DumpCache<M extends SunlightDumpModel> {
         try {
             lock.lock();
             modelStore.put(model.article(), model);
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    public void save(M model, BiFunction<M, M, M> mergeFunction) {
-        try {
-            lock.lock();
-            modelStore.merge(model.article(), model, mergeFunction);
         } finally {
             lock.unlock();
         }
@@ -132,11 +114,16 @@ public final class DumpCache<M extends SunlightDumpModel> {
     }
 
     public void exportDump(Path file, JsonMapper jsonMapper) throws IOException {
+        exportDump(file, jsonMapper, null);
+    }
+
+    public void exportDump(Path file, JsonMapper jsonMapper, Comparator<M> comparator) throws IOException {
         if (!Files.isDirectory(file.getParent()))
             Files.createDirectories(file.getParent());
 
         try (Writer writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8, OPEN_OPTIONS)) {
-            jsonMapper.writeValue(writer, models());
+            List<M> models = comparator != null ? models().stream().sorted(comparator).toList() : models();
+            jsonMapper.writeValue(writer, models);
         }
     }
 

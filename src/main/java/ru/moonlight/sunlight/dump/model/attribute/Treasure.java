@@ -50,7 +50,7 @@ public enum Treasure implements KeyedEnum {
 
         sunlightKey = sunlightKey.trim().toLowerCase();
         for (Treasure treasure : values())
-            if (sunlightKey.equals(treasure.getSunlightKey()))
+            if (treasure.getSunlightKey() != null && sunlightKey.contains(treasure.getSunlightKey()))
                 return Optional.of(treasure);
 
         System.err.printf("Unknown treasure key: '%s'%n", sunlightKey);

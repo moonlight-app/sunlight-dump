@@ -35,30 +35,31 @@ public final class GenerateSQLCommand implements CommandExecutor {
         System.out.printf("Generating inserting SQL script for %d item(s)...%n", fullItems.size());
 
         List<String> content = new ArrayList<>();
-        content.add("INSERT INTO catalog_items (sunlight_article, type, name, model, price, sizes, audiences, materials, treasures, preview_url)");
+        content.add("INSERT INTO jewel_products (id, article, type, name, price, sizes, audiences, materials, sample, sample_type, treasures, weight, preview_url, description)");
         content.add("VALUES");
 
         Iterator<SunlightFullItem> iterator = fullItems.iterator();
         while (iterator.hasNext()) {
             SunlightFullItem item = iterator.next();
-
-            if (!isFullyCompatible(item.materials(), Material::getMoonlightId))
+            if (hasUnknown(item.materials(), Material::getMoonlightId) || hasUnknown(item.treasures(), Treasure::getMoonlightId))
                 continue;
 
-            if (!isFullyCompatible(item.treasures(), Treasure::getMoonlightId))
-                continue;
-
-            content.add("    (%d, %d, %s, %s, %.1f, %s, %s, %s, %s, %s)%s".formatted(
-                    item.article(),
-                    item.type().getMoonlightId(),
-                    escapeString(item.name()),
-                    escapeString(item.model()),
-                    item.price(),
-                    escapeString(joinArray(item.sizes())),
-                    escapeString(joinArray(preProcessAudiences(item.audiences()), Audience::getMoonlightId)),
-                    escapeString(joinArray(item.materials(), Material::getMoonlightId)),
-                    escapeString(joinArray(item.treasures(), Treasure::getMoonlightId)),
-                    escapeString(item.imageUrl()),
+            Audience[] audiences = preProcessAudiences(item.audiences());
+            content.add("    (%d, %d, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)%s".formatted(
+                    item.index(),                                                           // id
+                    item.article(),                                                         // article
+                    item.type().getMoonlightId(),                                           // type
+                    escapeString(item.name()),                                              // name
+                    item.price(),                                                           // price
+                    escapeString(joinArray(item.sizes())),                                  // sizes
+                    escapeString(joinArray(audiences, Audience::getMoonlightId)),           // audiences
+                    escapeString(joinArray(item.materials(), Material::getMoonlightId)),    // materials
+                    escapeString(item.sample()),                                            // sample
+                    escapeString(item.sampleType()),                                        // sample_type
+                    escapeString(joinArray(item.treasures(), Treasure::getMoonlightId)),    // treasures
+                    (item.weight() != null ? item.weight().toString() : "null"),            // weight
+                    escapeString(item.imageUrl()),                                          // preview_url
+                    escapeString(item.description()),                                       // description
                     (iterator.hasNext() ? "," : ";")
             ));
         }
@@ -75,11 +76,11 @@ public final class GenerateSQLCommand implements CommandExecutor {
         System.out.println("Done!");
     }
 
-    private <T> boolean isFullyCompatible(T[] items, ToIntFunction<T> idFunction) {
+    private <T> boolean hasUnknown(T[] items, ToIntFunction<T> idFunction) {
         if (items == null || items.length == 0)
-            return false;
+            return true;
 
-        return Stream.of(items).allMatch(i -> i != null && idFunction.applyAsInt(i) > 0);
+        return !Stream.of(items).allMatch(i -> i != null && idFunction.applyAsInt(i) > 0);
     }
 
     private static String joinArray(float[] array) {
@@ -124,7 +125,7 @@ public final class GenerateSQLCommand implements CommandExecutor {
             return null;
 
         Audience[] filtered = Stream.of(audiences)
-                .filter(a -> a == null || a == Audience.ALL)
+                .filter(a -> a != null && a != Audience.ALL)
                 .toArray(Audience[]::new);
 
         return filtered.length != 0 ? filtered : null;
@@ -134,7 +135,7 @@ public final class GenerateSQLCommand implements CommandExecutor {
         if (input == null || input.isEmpty())
             return "null";
 
-        return '\'' + input + '\'';
+        return '\'' + input.replace("'", "\\'").replace("\r", "").replace("\n", "\\n") + '\'';
     }
 
 }
