@@ -12,7 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
@@ -32,21 +32,22 @@ public final class GenerateSQLCommand implements CommandExecutor {
             return;
         }
 
-        System.out.printf("Generating inserting SQL script for %d item(s)...%n", fullItems.size());
+        List<SunlightFullItem> sortedItems = fullItems.stream()
+                .sorted(Comparator.comparingInt(SunlightFullItem::index))
+                .toList();
+
+        System.out.printf("Generating inserting SQL script for %d item(s)...%n", sortedItems.size());
 
         List<String> content = new ArrayList<>();
-        content.add("INSERT INTO jewel_products (id, article, type, name, price, sizes, audiences, materials, sample, sample_type, treasures, weight, preview_url, description)");
+        content.add("INSERT INTO jewel_products (article, type, name, price, sizes, audiences, materials, sample, sample_type, treasures, weight, preview_url, description)");
         content.add("VALUES");
 
-        Iterator<SunlightFullItem> iterator = fullItems.iterator();
-        while (iterator.hasNext()) {
-            SunlightFullItem item = iterator.next();
+        for (SunlightFullItem item : sortedItems) {
             if (hasUnknown(item.materials(), Material::getMoonlightId) || hasUnknown(item.treasures(), Treasure::getMoonlightId))
                 continue;
 
             Audience[] audiences = preProcessAudiences(item.audiences());
-            content.add("    (%d, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)%s".formatted(
-                    item.index(),                                                           // id
+            content.add("    (%d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s),".formatted(
                     item.article(),                                                         // article
                     escapeString(item.type().getKey()),                                     // type
                     escapeString(item.name()),                                              // name
@@ -59,10 +60,15 @@ public final class GenerateSQLCommand implements CommandExecutor {
                     escapeString(joinArray(item.treasures(), Treasure::getMoonlightId)),    // treasures
                     (item.weight() != null ? item.weight().toString() : "null"),            // weight
                     escapeString(item.imageUrl()),                                          // preview_url
-                    escapeString(item.description()),                                       // description
-                    (iterator.hasNext() ? "," : ";")
+                    escapeString(item.description())                                        // description
             ));
         }
+
+        String lastLine = content.removeLast();
+        if (lastLine.endsWith(","))
+            lastLine = lastLine.substring(0, lastLine.length() - 1) + ';';
+
+        content.addLast(lastLine);
 
         System.out.println("Saving...");
 
