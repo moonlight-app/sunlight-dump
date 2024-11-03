@@ -7,12 +7,12 @@ import ru.moonlight.sunlight.dump.model.attribute.ProductType;
 import ru.moonlight.sunlight.dump.model.attribute.Treasure;
 
 public record SunlightFullItem(
+        @JsonProperty("global_index") int index,
         @JsonProperty("article") long article,
         @JsonProperty("type") ProductType type,
         @JsonProperty("name") String name,
         @JsonProperty("price") float price,
-        @JsonProperty("global_index") int index,
-        @JsonProperty("sizes") float[] sizes,
+        @JsonProperty("sizes") String[] sizes,
         @JsonProperty("audiences") Audience[] audiences,
         @JsonProperty("materials") Material[] materials,
         @JsonProperty("sample") String sample,
@@ -29,11 +29,11 @@ public record SunlightFullItem(
             audiences = item.audiences().toArray(Audience[]::new);
 
         return new SunlightFullItem(
+                item.index(),
                 item.article(),
                 details.type(),
                 item.name(),
                 item.price(),
-                item.index(),
                 details.sizes(),
                 audiences,
                 details.materials(),

@@ -89,19 +89,11 @@ public final class GenerateSQLCommand implements CommandExecutor {
         return !Stream.of(items).allMatch(i -> i != null && idFunction.applyAsInt(i) > 0);
     }
 
-    private static String joinArray(float[] array) {
+    private static String joinArray(String[] array) {
         if (array == null || array.length == 0)
             return null;
 
-        StringBuilder stringBuilder = new StringBuilder();
-        for (float f : array) {
-            if (!stringBuilder.isEmpty())
-                stringBuilder.append(",");
-
-            stringBuilder.append(f);
-        }
-
-        return stringBuilder.toString();
+        return String.join(",", array);
     }
 
     private static <T> String joinArray(T[] array, ToIntFunction<T> toIntFunction) {

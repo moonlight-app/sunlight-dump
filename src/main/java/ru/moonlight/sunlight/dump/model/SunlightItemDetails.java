@@ -18,7 +18,7 @@ import java.util.function.Supplier;
 public record SunlightItemDetails(
         @JsonProperty("article") long article,
         @JsonProperty("type") ProductType type,
-        @JsonProperty("sizes") float[] sizes,
+        @JsonProperty("sizes") String[] sizes,
         @JsonProperty("materials") Material[] materials,
         @JsonProperty("sample") String sample,
         @JsonProperty("sample_type") String sampleType,
@@ -27,7 +27,7 @@ public record SunlightItemDetails(
         @JsonProperty("description") String description
 ) implements SunlightDumpModel {
 
-    public static SunlightItemDetails fromElement(Element element, long article, Supplier<float[]> sizesProvider) {
+    public static SunlightItemDetails fromElement(Element element, long article, Supplier<String[]> sizesProvider) {
         Map<String, String> attributes = lookupItemAttributes(element);
         if (!String.valueOf(article).equals(attributes.get("артикул")))
             throw new SunlightParseException("[%d]: item attribute mismatched!".formatted(article));

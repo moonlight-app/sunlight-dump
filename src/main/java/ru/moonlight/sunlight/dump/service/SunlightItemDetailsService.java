@@ -109,7 +109,7 @@ public final class SunlightItemDetailsService implements DumpService {
 
         try {
             semaphore.acquire();
-            Document document  = SunlightConnector.download(pageUrl);
+            Document document = SunlightConnector.download(pageUrl);
             return SunlightItemDetails.fromElement(document, article, () -> lookupItemSizes(article));
         } catch (InterruptedException ignored) {
         } catch (IOException ex) {
@@ -121,7 +121,7 @@ public final class SunlightItemDetailsService implements DumpService {
         return null;
     }
 
-    private float[] lookupItemSizes(long article) {
+    private String[] lookupItemSizes(long article) {
         Call<OrderData> call = application.getSunlightApi().fetchOrderData(article, CITY_ID_PERM);
         OrderData orderData = SunlightConnector.executeCall(call);
         return orderData != null ? orderData.getSizes() : null;
