@@ -48,19 +48,19 @@ public final class GenerateSQLCommand implements CommandExecutor {
 
             Audience[] audiences = preProcessAudiences(item.audiences());
             content.add("    (%d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s),".formatted(
-                    item.article(),                                                         // article
-                    escapeString(item.type().getKey()),                                     // type
-                    escapeString(item.name()),                                              // name
-                    item.price(),                                                           // price
-                    escapeString(joinArray(item.sizes())),                                  // sizes
-                    escapeString(joinArray(audiences, Audience::getMoonlightId)),           // audiences
-                    escapeString(joinArray(item.materials(), Material::getMoonlightId)),    // materials
-                    escapeString(item.sample()),                                            // sample
-                    escapeString(item.sampleType()),                                        // sample_type
-                    escapeString(joinArray(item.treasures(), Treasure::getMoonlightId)),    // treasures
-                    (item.weight() != null ? item.weight().toString() : "null"),            // weight
-                    escapeString(item.imageUrl()),                                          // preview_url
-                    escapeString(item.description())                                        // description
+                    item.article(),                                                 // article
+                    escapeString(item.type().getKey()),                             // type
+                    escapeString(item.name()),                                      // name
+                    item.price(),                                                   // price
+                    escapeString(joinArray(item.sizes())),                          // sizes
+                    generateBitmask(audiences, Audience::getMoonlightId),           // audiences
+                    generateBitmask(item.materials(), Material::getMoonlightId),    // materials
+                    escapeString(item.sample()),                                    // sample
+                    escapeString(item.sampleType()),                                // sample_type
+                    generateBitmask(item.treasures(), Treasure::getMoonlightId),    // treasures
+                    (item.weight() != null ? item.weight().toString() : "null"),    // weight
+                    escapeString(item.imageUrl()),                                  // preview_url
+                    escapeString(item.description())                                // description
             ));
         }
 
@@ -96,11 +96,11 @@ public final class GenerateSQLCommand implements CommandExecutor {
         return String.join(",", array);
     }
 
-    private static <T> String joinArray(T[] array, ToIntFunction<T> toIntFunction) {
+    private static <T> Object generateBitmask(T[] array, ToIntFunction<T> toIntFunction) {
         if (array == null || array.length == 0)
-            return null;
+            return "null";
 
-        StringBuilder stringBuilder = new StringBuilder();
+        int result = 0;
         for (T t : array) {
             if (t == null)
                 continue;
@@ -109,13 +109,10 @@ public final class GenerateSQLCommand implements CommandExecutor {
             if (asInt <= 0)
                 continue;
 
-            if (!stringBuilder.isEmpty())
-                stringBuilder.append(",");
-
-            stringBuilder.append(asInt);
+            result |= asInt;
         }
 
-        return stringBuilder.toString();
+        return result;
     }
 
     private static Audience[] preProcessAudiences(Audience[] audiences) {

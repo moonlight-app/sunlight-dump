@@ -11,8 +11,8 @@ public enum Audience implements KeyedEnum {
     ALL         ("all",         0,      0),
     MEN         ("men",         446,    1),
     WOMEN       ("women",       447,    2),
-    CHILDREN    ("children",    1533,   3),
-    UNISEX      ("unisex",      594,    4),
+    CHILDREN    ("children",    1533,   4),
+    UNISEX      ("unisex",      594,    8),
     ;
 
     @JsonValue

@@ -12,14 +12,14 @@ import java.util.Optional;
 @AllArgsConstructor
 public enum Material implements KeyedEnum {
 
-    PLATINUM        ("platinum",        3603,   3,  "платина"),
     GOLD            ("gold",            632,    1,  "золото"),
     SILVER          ("silver",          329,    2,  "серебро"),
-    PINK_GOLD       ("pink_gold",       327,    5,  "розовое золото"),
-    WHITE_GOLD      ("white_gold",      328,    4,  "белое золото"),
+    PLATINUM        ("platinum",        3603,   4,  "платина"),
+    WHITE_GOLD      ("white_gold",      328,    8,  "белое золото"),
+    PINK_GOLD       ("pink_gold",       327,    16, "розовое золото"),
+    CERAMICS        ("ceramics",        1556,   32, "керамика"),
     YELLOW_GOLD     ("yellow_gold",     326,    0,  "желтое золото"),
     JEWELRY_STEEL   ("jewelry_steel",   419,    0,  "ювелирная сталь"),
-    CERAMICS        ("ceramics",        1556,   6,  "керамика"),
     GENUINE_LEATHER ("genuine_leather", 3176,   0,  "натуральная кожа"),
     RUBBER          ("rubber",          1558,   0,  "каучук"),
     UNKNOWN         ("unknown",         0,      0,  null),

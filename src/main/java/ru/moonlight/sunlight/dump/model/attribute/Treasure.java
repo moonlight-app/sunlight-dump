@@ -12,15 +12,15 @@ import java.util.Optional;
 @AllArgsConstructor
 public enum Treasure implements KeyedEnum {
 
-    NOTHING     (null,          0,      1,  null),
-    DIAMOND     ("diamond",     13,     2,  "бриллиант"),
-    SAPPHIRE    ("sapphire",    15,     3,  "сапфир"),
-    PEARL       ("pearl",       17,     4,  "жемчуг"),
-    AMETHYST    ("amethyst",    22,     5,  "аметист"),
-    FIANIT      ("fianit",      322,    6,  "фианит"),
-    EMERALD     ("emerald",     31,     7,  "изумруд"),
-    RUBY        ("ruby",        304,    8,  "рубин"),
-    UNKNOWN     ("unknown",     0,      0,  null),
+    NOTHING     (null,          0,      1,      null),
+    DIAMOND     ("diamond",     13,     2,      "бриллиант"),
+    SAPPHIRE    ("sapphire",    15,     4,      "сапфир"),
+    PEARL       ("pearl",       17,     8,      "жемчуг"),
+    AMETHYST    ("amethyst",    22,     16,     "аметист"),
+    FIANIT      ("fianit",      322,    32,     "фианит"),
+    EMERALD     ("emerald",     31,     64,     "изумруд"),
+    RUBY        ("ruby",        304,    128,    "рубин"),
+    UNKNOWN     ("unknown",     0,      0,      null),
     ;
 
     @JsonValue
