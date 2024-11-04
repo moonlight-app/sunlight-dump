@@ -4,20 +4,14 @@ import lombok.AllArgsConstructor;
 import ru.moonlight.sunlight.dump.SunlightDump;
 import ru.moonlight.sunlight.dump.cli.CommandExecutor;
 import ru.moonlight.sunlight.dump.model.SunlightFullItem;
-import ru.moonlight.sunlight.dump.model.attribute.Audience;
 import ru.moonlight.sunlight.dump.model.attribute.Material;
 import ru.moonlight.sunlight.dump.model.attribute.Treasure;
+import ru.moonlight.sunlight.dump.service.ScriptGeneratorService;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
-
-import static ru.moonlight.sunlight.dump.Constants.OPEN_OPTIONS;
 
 @AllArgsConstructor
 public final class GenerateSQLCommand implements CommandExecutor {
@@ -33,104 +27,24 @@ public final class GenerateSQLCommand implements CommandExecutor {
         }
 
         List<SunlightFullItem> sortedItems = fullItems.stream()
+                .filter(this::isMoonlightCompatible)
                 .sorted(Comparator.comparingInt(SunlightFullItem::index))
                 .toList();
 
         System.out.printf("Generating inserting SQL script for %d item(s)...%n", sortedItems.size());
-
-        List<String> content = new ArrayList<>();
-        content.add("INSERT INTO jewel_products (article, type, name, price, sizes, audiences, materials, sample, sample_type, treasures, weight, preview_url, description)");
-        content.add("VALUES");
-
-        for (SunlightFullItem item : sortedItems) {
-            if (hasUnknown(item.materials(), Material::getMoonlightId) || hasUnknown(item.treasures(), Treasure::getMoonlightId))
-                continue;
-
-            Audience[] audiences = preProcessAudiences(item.audiences());
-            content.add("    (%d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s),".formatted(
-                    item.article(),                                                 // article
-                    escapeString(item.type().getKey()),                             // type
-                    escapeString(item.name()),                                      // name
-                    item.price(),                                                   // price
-                    escapeString(joinArray(item.sizes())),                          // sizes
-                    generateBitmask(audiences, Audience::getMoonlightId),           // audiences
-                    generateBitmask(item.materials(), Material::getMoonlightId),    // materials
-                    escapeString(item.sample()),                                    // sample
-                    escapeString(item.sampleType()),                                // sample_type
-                    generateBitmask(item.treasures(), Treasure::getMoonlightId),    // treasures
-                    (item.weight() != null ? item.weight().toString() : "null"),    // weight
-                    escapeString(item.imageUrl()),                                  // preview_url
-                    escapeString(item.description())                                // description
-            ));
-        }
-
-        String lastLine = content.removeLast();
-        if (lastLine.endsWith(","))
-            lastLine = lastLine.substring(0, lastLine.length() - 1) + ';';
-
-        content.addLast(lastLine);
-
-        System.out.println("Saving...");
-
-        Path outputFile = application.getDumpDir().resolve("generated.sql");
-
-        if (!Files.isDirectory(outputFile.getParent()))
-            Files.createDirectories(outputFile.getParent());
-
-        Files.write(outputFile, content, StandardCharsets.UTF_8, OPEN_OPTIONS);
-
+        ScriptGeneratorService.generateSqlScripts(application.getSqlScriptsDir(), sortedItems);
         System.out.println("Done!");
     }
 
-    private <T> boolean hasUnknown(T[] items, ToIntFunction<T> idFunction) {
+    private boolean isMoonlightCompatible(SunlightFullItem item) {
+        return hasAllKnown(item.materials(), Material::getMoonlightId) && hasAllKnown(item.treasures(), Treasure::getMoonlightId);
+    }
+
+    private <T> boolean hasAllKnown(T[] items, ToIntFunction<T> idFunction) {
         if (items == null || items.length == 0)
-            return true;
+            return false;
 
-        return !Stream.of(items).allMatch(i -> i != null && idFunction.applyAsInt(i) > 0);
-    }
-
-    private static String joinArray(String[] array) {
-        if (array == null || array.length == 0)
-            return null;
-
-        return String.join(",", array);
-    }
-
-    private static <T> Object generateBitmask(T[] array, ToIntFunction<T> toIntFunction) {
-        if (array == null || array.length == 0)
-            return "null";
-
-        int result = 0;
-        for (T t : array) {
-            if (t == null)
-                continue;
-
-            int asInt = toIntFunction.applyAsInt(t);
-            if (asInt <= 0)
-                continue;
-
-            result |= asInt;
-        }
-
-        return result;
-    }
-
-    private static Audience[] preProcessAudiences(Audience[] audiences) {
-        if (audiences == null || audiences.length == 0)
-            return null;
-
-        Audience[] filtered = Stream.of(audiences)
-                .filter(a -> a != null && a != Audience.ALL)
-                .toArray(Audience[]::new);
-
-        return filtered.length != 0 ? filtered : null;
-    }
-
-    private static String escapeString(String input) {
-        if (input == null || input.isEmpty())
-            return "null";
-
-        return '\'' + input.replace("'", "\\'").replace("\r", "").replace("\n", "\\n") + '\'';
+        return Stream.of(items).allMatch(i -> i != null && idFunction.applyAsInt(i) > 0);
     }
 
 }

@@ -10,12 +10,12 @@ import java.util.stream.Stream;
 @Getter
 public enum ProductType implements KeyedEnum {
 
-    RING        ("ring",        5,      "кольца"),
-    BRACELET    ("bracelet",    317,    "браслеты"),
-    CHAIN       ("chain",       319,    "цепи"),
-    WATCH       ("watch",       318,    "часы"),
-    EARRINGS    ("earrings",    4,      "серьги"),
-    NECKLACE    ("necklace",    365,    "колье", "шейное украшение"),
+    RING        ("ring",        5,      1,  "кольца"),
+    BRACELET    ("bracelet",    317,    2,  "браслеты"),
+    CHAIN       ("chain",       319,    4,  "цепи"),
+    WATCH       ("watch",       318,    8,  "часы"),
+    EARRINGS    ("earrings",    4,      16, "серьги"),
+    NECKLACE    ("necklace",    365,    32, "колье", "шейное украшение"),
     ;
 
     public static final String ALL_SUPPORTED = Stream.of(values())
@@ -26,12 +26,18 @@ public enum ProductType implements KeyedEnum {
     @JsonValue
     private final String key;
     private final int sunlightId; // query param = 'product_type'
+    private final int moonlightId;
     private final String[] sunlightKeys;
 
-    ProductType(String key, int sunlightId, String... sunlightKeys) {
+    ProductType(String key, int sunlightId, int moonlightId, String... sunlightKeys) {
         this.key = key;
         this.sunlightId = sunlightId;
+        this.moonlightId = moonlightId;
         this.sunlightKeys = sunlightKeys;
+    }
+
+    public float getSizeSequenceStep() {
+        return this == NECKLACE ? 1F : 0.5F;
     }
 
     public static Optional<ProductType> resolveBySunlightName(long article, String sunlightName) {

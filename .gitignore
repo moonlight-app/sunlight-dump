@@ -2,6 +2,7 @@
 .gradle/
 build/
 /dump/
+/sql-scripts/
 out/
 *.iml
 *.jar

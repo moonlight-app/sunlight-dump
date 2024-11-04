@@ -22,6 +22,7 @@ import static ru.moonlight.sunlight.dump.Constants.BASE_API_URL;
 public final class SunlightDump {
 
     @Getter private final Path dumpDir;
+    @Getter private final Path sqlScriptsDir;
     @Getter private final DumpCache<SunlightCatalogItem> catalogItemsCache;
     @Getter private final DumpCache<SunlightItemDetails> itemDetailsCache;
     @Getter private final DumpCache<SunlightFullItem> fullItemsCache;
@@ -35,6 +36,7 @@ public final class SunlightDump {
 
     public SunlightDump() {
         this.dumpDir = Paths.get("dump");
+        this.sqlScriptsDir = Paths.get("sql-scripts");
         this.catalogItemsCache = new DumpCache<>();
         this.itemDetailsCache = new DumpCache<>();
         this.fullItemsCache = new DumpCache<>();
