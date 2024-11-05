@@ -88,7 +88,7 @@ public final class ScriptGeneratorService {
 
         List<Float> sizesAsList = new ArrayList<>(uniqueSizes.keySet());
         for (SizedItem item : sizedItems) {
-            List<Integer> sizeIds = new ArrayList<>();
+            Set<Integer> sizeIds = new TreeSet<>();
             for (ProductSize size : item.sizes()) {
                 for (float value : size.asSequence()) {
                     int id = sizesAsList.indexOf(value);
