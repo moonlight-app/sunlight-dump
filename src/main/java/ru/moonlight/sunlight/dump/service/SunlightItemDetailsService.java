@@ -14,6 +14,7 @@ import ru.moonlight.sunlight.dump.util.SunlightConnector;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.nio.file.Path;
+import java.text.MessageFormat;
 import java.util.List;
 import java.util.concurrent.*;
 
@@ -124,7 +125,41 @@ public final class SunlightItemDetailsService implements DumpService {
     private String[] lookupItemSizes(long article) {
         Call<OrderData> call = application.getSunlightApi().fetchOrderData(article, CITY_ID_PERM);
         OrderData orderData = SunlightConnector.executeCall(call);
-        return orderData != null ? orderData.getSizes() : null;
+        return orderData != null ? fixSizesRangeSeparator(orderData.getSizes()) : null;
+    }
+
+    private static String[] fixSizesRangeSeparator(String[] sizes) {
+        if (sizes == null || sizes.length == 0)
+            return sizes;
+
+        String[] output = new String[sizes.length];
+
+        for (int i = 0; i < sizes.length; i++) {
+            String size = sizes[i];
+
+            try {
+                Float.parseFloat(size);
+                output[i] = size;
+                continue;
+            } catch (NumberFormatException ignored) {
+                String[] rawBounds = size.split("–");
+                if (rawBounds.length == 2) {
+                    try {
+                        float bound1 = Float.parseFloat(rawBounds[0]);
+                        float bound2 = Float.parseFloat(rawBounds[1]);
+                        float min = Math.min(bound1, bound2);
+                        float max = Math.max(bound1, bound2);
+                        output[i] = MessageFormat.format("{0,number,#.#}-{1,number,#.#}", min, max);
+                        continue;
+                    } catch (NumberFormatException ignored2) {
+                    }
+                }
+            }
+
+            throw new IllegalArgumentException("Invalid size value: '%s'".formatted(size));
+        }
+
+        return output;
     }
 
 }

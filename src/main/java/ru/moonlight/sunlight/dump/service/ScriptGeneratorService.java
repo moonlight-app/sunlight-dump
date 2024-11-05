@@ -4,13 +4,15 @@ import ru.moonlight.sunlight.dump.model.SunlightFullItem;
 import ru.moonlight.sunlight.dump.model.attribute.Audience;
 import ru.moonlight.sunlight.dump.model.attribute.Material;
 import ru.moonlight.sunlight.dump.model.attribute.Treasure;
-import ru.moonlight.sunlight.dump.model.size.ProductSize;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -35,20 +37,11 @@ public final class ScriptGeneratorService {
                 SCRIPT_NAME_PRODUCTS
         );
 
-        int id = 0;
-        List<SizedItem> sizedItems = new ArrayList<>();
-        for (SunlightFullItem item : items) {
-            SizedItem sizedItem = SizedItem.from(id++, item);
-            if (sizedItem != null) {
-                sizedItems.add(sizedItem);
-            }
-        }
-
         Map<Integer, int[]> productSizeMappings = new TreeMap<>();
 
         writeStatementToFile(
                 outputDir,
-                generateProductSizesInsert(sizedItems, productSizeMappings),
+                generateProductSizesInsert(items, productSizeMappings),
                 SCRIPT_NAME_PRODUCT_SIZES
         );
 
@@ -74,33 +67,35 @@ public final class ScriptGeneratorService {
         return statement;
     }
 
-    private static List<String> generateProductSizesInsert(List<SizedItem> sizedItems, Map<Integer, int[]> productSizeMappings) {
-        Map<Float, Integer> uniqueSizes = new TreeMap<>();
+    private static List<String> generateProductSizesInsert(List<SunlightFullItem> items, Map<Integer, int[]> productSizeMappings) {
+        Map<String, Integer> uniqueSizes = new TreeMap<>();
+        for (var item : items) {
+            if (!item.isSized())
+                continue;
 
-        for (SizedItem item : sizedItems) {
-            int moonlightTypeId = item.item().type().getMoonlightId();
-            for (ProductSize size : item.sizes()) {
-                for (float value : size.asSequence()) {
-                    uniqueSizes.merge(value, moonlightTypeId, (oldValue, newValue) -> oldValue | newValue);
-                }
+            int moonlightTypeId = item.type().getMoonlightId();
+            for (var size : item.sizes()) {
+                uniqueSizes.merge(size, moonlightTypeId, (oldValue, newValue) -> oldValue | newValue);
             }
         }
 
-        List<Float> sizesAsList = new ArrayList<>(uniqueSizes.keySet());
-        for (SizedItem item : sizedItems) {
-            List<Integer> sizeIds = new ArrayList<>();
-            for (ProductSize size : item.sizes()) {
-                for (float value : size.asSequence()) {
-                    int id = sizesAsList.indexOf(value);
-                    if (id == -1)
-                        throw new IllegalStateException("Size '%s' isn't listed!".formatted(value));
+        List<String> sizesAsList = new ArrayList<>(uniqueSizes.keySet());
+        for (int i = 0; i < items.size(); i++) {
+            var item = items.get(i);
+            if (item.isSized())
+                continue;
 
-                    sizeIds.add(id + 1);
-                }
+            List<Integer> sizeIds = new ArrayList<>();
+            for (var size : item.sizes()) {
+                int sizeId = sizesAsList.indexOf(size);
+                if (sizeId == -1)
+                    throw new IllegalStateException("Size '%s' isn't listed!".formatted(size));
+
+                sizeIds.add(sizeId + 1);
             }
 
             int[] idsArray = sizeIds.stream().mapToInt(Integer::intValue).toArray();
-            productSizeMappings.put(item.id(), idsArray);
+            productSizeMappings.put(i + 1, idsArray);
         }
 
         List<String> statement = new ArrayList<>();
@@ -201,15 +196,6 @@ public final class ScriptGeneratorService {
             return "null";
 
         return '\'' + input.replace("'", "\\'").replace("\r", "").replace("\n", "\\n") + '\'';
-    }
-
-    private record SizedItem(int id, SunlightFullItem item, ProductSize[] sizes) {
-
-        private static SizedItem from(int id, SunlightFullItem item) {
-            ProductSize[] sizes = item.parseSizes();
-            return sizes != null ? new SizedItem(id, item, sizes) : null;
-        }
-
     }
 
 }
