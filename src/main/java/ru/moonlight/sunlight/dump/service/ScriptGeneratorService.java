@@ -38,7 +38,7 @@ public final class ScriptGeneratorService {
         int id = 0;
         List<SizedItem> sizedItems = new ArrayList<>();
         for (SunlightFullItem item : items) {
-            SizedItem sizedItem = SizedItem.from(id++, item);
+            SizedItem sizedItem = SizedItem.from(++id, item);
             if (sizedItem != null) {
                 sizedItems.add(sizedItem);
             }
@@ -122,7 +122,7 @@ public final class ScriptGeneratorService {
         for (SunlightFullItem item : items) {
             Audience[] audiences = preProcessAudiences(item.audiences());
             statement.add("    (%d, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s),".formatted(
-                    id++,                                                           // ID
+                    ++id,                                                           // ID
                     item.article(),                                                 // article
                     escapeString(item.type().getKey()),                             // type
                     escapeString(item.name()),                                      // name
