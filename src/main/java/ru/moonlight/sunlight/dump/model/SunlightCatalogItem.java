@@ -40,7 +40,7 @@ public record SunlightCatalogItem(
         Element imageElement = element.selectFirst("img.cl-item-img-lazy");
         String imageUrl = imageElement != null ? imageElement.attr("src") : null;
 
-        Element pageElement = element.selectFirst("a.cl-item-link");
+        Element pageElement = element.selectFirst("a.cl-item-img");
         String pageUrl = pageElement != null ? pageElement.attr("href") : null;
 
         return new SunlightCatalogItem(article, name, price, index, audiences, imageUrl, pageUrl);
