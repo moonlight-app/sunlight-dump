@@ -5,6 +5,7 @@ import ru.moonlight.sunlight.dump.SunlightDump;
 import ru.moonlight.sunlight.dump.cli.CommandExecutor;
 import ru.moonlight.sunlight.dump.model.SunlightFullItem;
 import ru.moonlight.sunlight.dump.model.attribute.Material;
+import ru.moonlight.sunlight.dump.model.attribute.ProductType;
 import ru.moonlight.sunlight.dump.model.attribute.Treasure;
 import ru.moonlight.sunlight.dump.service.ScriptGeneratorService;
 
@@ -37,6 +38,13 @@ public final class GenerateSQLCommand implements CommandExecutor {
     }
 
     private boolean isMoonlightCompatible(SunlightFullItem item) {
+        ProductType type = item.type();
+        if (type == ProductType.WATCH)
+            return true;
+
+        if (type == ProductType.CHAIN)
+            return hasAllKnown(item.materials(), Material::getMoonlightId);
+
         return hasAllKnown(item.materials(), Material::getMoonlightId) && hasAllKnown(item.treasures(), Treasure::getMoonlightId);
     }
 
