@@ -39,7 +39,7 @@ public enum Treasure implements KeyedEnum {
 
         List<Treasure> treasures = new ArrayList<>();
         for (String key : keys)
-            findBySunlightKey(key).ifPresent(treasures::add);
+            findBySunlightKey(key).filter(treasure -> treasure != UNKNOWN).ifPresent(treasures::add);
 
         return !treasures.isEmpty() ? Optional.of(treasures.toArray(Treasure[]::new)) : Optional.empty();
     }

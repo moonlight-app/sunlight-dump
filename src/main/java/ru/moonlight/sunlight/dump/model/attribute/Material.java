@@ -41,7 +41,7 @@ public enum Material implements KeyedEnum {
 
         List<Material> materials = new ArrayList<>();
         for (String key : keys)
-            findBySunlightKey(key).ifPresent(materials::add);
+            findBySunlightKey(key).filter(material -> material != UNKNOWN).ifPresent(materials::add);
 
         return !materials.isEmpty() ? Optional.of(materials.toArray(Material[]::new)) : Optional.empty();
     }
