@@ -200,7 +200,7 @@ public final class ScriptGeneratorService {
         if (input == null || input.isEmpty())
             return "null";
 
-        return '\'' + input.replace("'", "\\'").replace("\r", "").replace("\n", "\\n") + '\'';
+        return '\'' + input.replace("'", "''").replace("\r", "").replace("\n", "\\n") + '\'';
     }
 
     private record SizedItem(int id, SunlightFullItem item, ProductSize[] sizes) {
